@@ -1,33 +1,48 @@
 import os
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import time
+import requests
 
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
+API_URL = f"https://api.telegram.org/bot{TOKEN}"
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привет! Я бот Алины по наращиванию ресниц 💕")
+def get_updates(offset=None):
+    url = f"{API_URL}/getUpdates"
+    params = {"timeout": 30, "offset": offset}
+    try:
+        r = requests.get(url, params=params, timeout=35)
+        return r.json()
+    except:
+        return {"ok": False}
 
-async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Классика — 1700\n2D — 1900\n3D — 2000\n4-10D — от 2500\nЦветные +300\nСнятие 300")
+def send_message(chat_id, text):
+    url = f"{API_URL}/sendMessage"
+    requests.post(url, json={"chat_id": chat_id, "text": text})
 
-async def book(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Напишите мне: @Kernysha или позвоните: 89118198643")
+def main():
+    last_update_id = None
+    while True:
+        updates = get_updates(last_update_id)
+        if updates.get("ok"):
+            for update in updates.get("result", []):
+                last_update_id = update["update_id"] + 1
+                message = update.get("message", {})
+                text = message.get("text", "")
+                chat_id = message.get("chat", {}).get("id")
+                if not chat_id:
+                    continue
+                if text == "/start":
+                    send_message(chat_id, "Привет! Я бот Алины по наращиванию ресниц 💕")
+                elif text == "/price":
+                    send_message(chat_id, "Классика — 1700\n2D — 1900\n3D — 2000\n4-10D — от 2500\nЦветные +300\nСнятие 300")
+                elif text == "/book":
+                    send_message(chat_id, "Напишите мне: @Kernysha или позвоните: 89118198643")
+                elif text == "/gift":
+                    send_message(chat_id, "Бонус 500₽ на любую услугу! Действует 7 дней 🎁")
+                elif text == "/promo":
+                    send_message(chat_id, "Первое посещение — скидка 10%\nПриведи подругу — скидка 15%")
+                elif text == "/contacts":
+                    send_message(chat_id, "Telegram: @Kernysha\nТелефон: 89118198643\nАдрес: Шушары, Новгородский пр. 8")
+        time.sleep(1)
 
-async def gift(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Бонус 500₽ на любую услугу! Действует 7 дней 🎁")
-
-async def promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Первое посещение — скидка 10%\nПриведи подругу — скидка 15%")
-
-async def contacts(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Telegram: @Kernysha\nТелефон: 89118198643\nInstagram: lashes_kernysh\nАдрес: Шушары, Новгородский пр. 8")
-
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("price", price))
-app.add_handler(CommandHandler("book", book))
-app.add_handler(CommandHandler("gift", gift))
-app.add_handler(CommandHandler("promo", promo))
-app.add_handler(CommandHandler("contacts", contacts))
-
-app.run_polling()
+if __name__ == "__main__":
+    main()
